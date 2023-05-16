@@ -3,6 +3,7 @@ const detailOfPemesananModel = require(`../models/index`).detail_pemesanan
 const pemesananModel = require(`../models/index`).pemesanan
 const modelUser = require(`../models/index`).user
 const kamarModel = require(`../models/index`).kamar
+const tipe_kamarModel = require(`../models/index`).tipe_kamar;
 
 const Op = require(`sequelize`).Op
 const Sequelize = require("sequelize");
@@ -13,7 +14,19 @@ const sequelize = new Sequelize("hotel_ukk", "root", "", {
 
 exports.getAllPemesanan = async (request, response) => {
     try{
-        let pemesanans = await pemesananModel.findAll()
+        let pemesanans = await pemesananModel.findAll({
+          include: {
+            model: tipe_kamarModel,
+            attributes: ['nama_tipe_kamar']
+          }
+        })
+        if (pemesanans.length === 0) {
+          return response.json({
+            success: true,
+            data: [],
+            message: `Data tidak ditemukan`,
+          });
+        }
         return response.json({
         success: true,
         data: pemesanans,
@@ -27,6 +40,12 @@ exports.getAllPemesanan = async (request, response) => {
 
 exports.findPemesanan = async (request, response) => {
     let status_pemesanan = request.body.status_pemesanan;
+    if (!status_pemesanan) {
+      return response.status(400).json({
+        success: false,
+        message: "parameter pencarian harus diisi",
+      });
+    }
     let pemesanans = await pemesananModel.findAll({
       where: {
         [Op.or]: [
@@ -34,6 +53,13 @@ exports.findPemesanan = async (request, response) => {
         ],
       },
     });
+
+    if (pemesanans.length === 0) {
+      return response.status(404).json({
+        success: false,
+        message: "Data tidak ditemukan",
+      });
+    }
     return response.json({
       success: true,
       data: pemesanans,
@@ -54,6 +80,10 @@ exports.addPemesanan = async (request, response) => {
             "createdAt",
             "updatedAt",
           ],
+          include: {
+            model : tipe_kamarModel,
+            attributes: ["harga"]
+          }
     });
 
     let nama_user = request.body.nama_user;
@@ -78,7 +108,7 @@ exports.addPemesanan = async (request, response) => {
             nomor_pemesanan: request.body.nomor_pemesanan,
             nama_pemesan: request.body.nama_pemesan,
             email_pemesan: request.body.email_pemesan,
-            tgl_pemesanan: request.body.tgl_pemesanan,
+            tgl_pemesanan: Date.now(),
             tgl_check_in: request.body.tgl_check_in,
             tgl_check_out: request.body.tgl_check_out,
             nama_tamu: request.body.nama_tamu,
@@ -86,33 +116,47 @@ exports.addPemesanan = async (request, response) => {
             tipeKamarId:kamar.tipeKamarId,
             status_pemesanan: request.body.status_pemesanan,
             userId: userId.id,
-    
         };
+        if (newPemesanan.nomor_pemesanan === "" ||newPemesanan.nama_pemesan === "" ||newPemesanan.email_pemesan === ""||
+        newPemesanan.tgl_pemesanan === ""||newPemesanan.tgl_check_in === ""||newPemesanan.tgl_check_out === ""||newPemesanan.nama_tamu === ""||
+        newPemesanan.jumlah_kamar === ""||newPemesanan.tipeKamarId === ""||newPemesanan.status_pemesanan === ""||newPemesanan.userId === "") {
+          return response.json({
+            success: false,
+            message: "Semua data harus diisi",
+          });
+        }
 
         let kamarCheck = await sequelize.query(
-            `SELECT * FROM detail_pemesanans WHERE kamarId = ${kamar.id} AND tgl_akses= ${request.body.tgl_check_in}`
+            `SELECT * FROM detail_pemesanans WHERE kamarId = ${kamar.id} AND tgl_akses >= "${request.body.tgl_check_in}" AND tgl_akses <= "${request.body.tgl_check_out}";`
           );
           if (kamarCheck[0].length === 0) {
+            const tgl_check_in = new Date(request.body.tgl_check_in);
+            const tgl_check_out = new Date(request.body.tgl_check_out);
+            const diffTime = Math.abs(tgl_check_out - tgl_check_in);
+            const diffDays = Math.ceil(diffTime/(1000*60*60*24));
+
             pemesananModel
               .create(newPemesanan)
               .then((result) => {
                 let pemesananID = result.id;
                 let detailsOfPemesanan = request.body.details_of_pemesanan;
+                let detailData = [];
 
-                for (let i = 0; i < detailsOfPemesanan.length; i++) {
-                    detailsOfPemesanan[i].pemesananId = pemesananID;
-                  }
-
+                for (let i = 0; i < diffDays; i++) {
                   let newDetail = {
                     pemesananId: pemesananID,
                     kamarId:kamar.id,
-                    tgl_akses: result.tgl_check_in,
-                    harga: detailsOfPemesanan[0].harga,
-                  };
+                    tgl_akses: new Date(tgl_check_in.getTime() + i*24*60*60*1000),
+                    harga: kamar.tipe_kamar.harga,
+                  }; 
+                  detailData.push(newDetail); 
+                  }
+
+                  
 
                   
           detailOfPemesananModel
-          .create(newDetail)
+          .bulkCreate(detailData)
           .then((result) => {
             return response.json({
               success: true,
@@ -168,7 +212,7 @@ exports.updatePemesanan = async (request, response) => {
       nomor_pemesanan: request.body.nomor_pemesanan,
       nama_pemesan: request.body.nama_pemesan,
       email_pemesan: request.body.email_pemesan,
-      tgl_pemesanan: request.body.tgl_pemesanan,
+      tgl_pemesanan: Date.now(),
       tgl_check_in: request.body.tgl_check_in,
       tgl_check_out: request.body.tgl_check_out,
       nama_tamu: request.body.nama_tamu,
@@ -180,47 +224,68 @@ exports.updatePemesanan = async (request, response) => {
   
   let pemesananId = request.params.id;
 
-  pemesananModel.update(Pemesanan, {where: {id:pemesananId}})
-  .then(async (result) => {
-    await detailOfPemesananModel.destroy({
-      where: {id: pemesananId},
-    });
+  try{
+    const existingPemesanan = await pemesananModel.findByPk(pemesananId);
 
-    let detailsOfPemesanan = request.body.details_of_pemesanan;
-
-    for (let i = 0; i < detailsOfPemesanan.length; i++) {
-      detailsOfPemesanan[i].pemesananId = pemesananId;
-    }
-
-    let newDetail = {
-      pemesananId: pemesananId,
-      kamarId:kamar.id,
-      tgl_akses: result.tgl_check_in,
-      harga: detailsOfPemesanan[0].harga,
-    };
-
-    detailOfPemesananModel
-          .create(newDetail)
-          .then((result) => {
-            return response.json({
-              success: true,
-              message: `terupdate mbah`,
-            });
-          })
-          .catch((error) => {
-            return response.json({
-              success: false,
-              message: error.message,
-            });
-          });
+    if(!existingPemesanan){
+      return response.json({
+        success:false,
+        message: ` Pemesanan dengan Id${pemesananId} tidak ditemukan`,
       })
-      .catch((error) => {
-        return response.json({
-          success: false,
-          message: error.message,
-        });
-      });
+    }
+    await existingPemesanan.update(Pemesanan);
+    return response.json({
+      success:true,
+      message:`pemesanan dengan Id${pemesananId} berhasil diupdate`
+    });
+  }catch(error){
+    return response.json({
+      success:false,
+      message: error.message,
+    });
   }
+}
+  // pemesananModel.update(Pemesanan, {where: {id:pemesananId}})
+  // .then(async (result) => {
+  //   await detailOfPemesananModel.destroy({
+  //     where: {id: pemesananId},
+  //   });
+
+  //   let detailsOfPemesanan = request.body.details_of_pemesanan;
+
+  //   for (let i = 0; i < detailsOfPemesanan.length; i++) {
+  //     detailsOfPemesanan[i].pemesananId = pemesananId;
+  //   }
+
+  //   let newDetail = {
+  //     pemesananId: pemesananId,
+  //     kamarId:kamar.id,
+  //     tgl_akses: result.tgl_check_in,
+  //     harga: detailsOfPemesanan[0].harga,
+  //   };
+
+  //   detailOfPemesananModel
+  //         .create(newDetail)
+  //         .then((result) => {
+  //           return response.json({
+  //             success: true,
+  //             message: `terupdate mbah`,
+  //           });
+  //         })
+  //         .catch((error) => {
+  //           return response.json({
+  //             success: false,
+  //             message: error.message,
+  //           });
+  //         });
+  //     })
+  //     .catch((error) => {
+  //       return response.json({
+  //         success: false,
+  //         message: error.message,
+  //       });
+  //     });
+  
 
 exports.deletePemesanan = async (request, response) => {
     let pemesananId = request.params.id
@@ -233,7 +298,7 @@ exports.deletePemesanan = async (request, response) => {
       .then((result)=> {
         return response.json({
           success: true,
-          message: 'terhapus semua kenangan'
+          message: 'transaksi terhapus'
         });
       })
     .catch((error)=>{
@@ -249,4 +314,46 @@ exports.deletePemesanan = async (request, response) => {
     message: error.message,
   });
 });
+};
+
+exports.updateStatusBooking = async (req, res) => {
+  try {
+    const params = { id: req.params.id };
+
+    const result = await pemesananModel.findOne({ where: params });
+    if (!result) {
+      return res.status(404).json({
+        message: "Data not found!",
+      });
+    }
+
+    const data = {
+      status_pemesanan: req.body.status_pemesanan,
+    };
+
+    if (data.status_pemesanan === "check_out") {
+      await pemesananModel.update(data, { where: params });
+
+      const updateTglAccess = {
+        tgl_akses: null,
+      };
+      await detailOfPemesananModel.update(updateTglAccess, { where: params });
+      return res.status(200).json({
+        message: "Success update status booking to check out",
+        code: 200,
+      });
+    }
+
+    await pemesananModel.update(data, { where: params });
+    return res.status(200).json({
+      message: "Success update status booking",
+      code: 200,
+    });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({
+      message: "Internal error",
+      err: err,
+    });
+  }
 };

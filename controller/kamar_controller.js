@@ -1,33 +1,21 @@
 const { request, response } = require("express")
-const db = require("../models/index")
 const kamarModel = require(`../models/index`).kamar
 const tipe_kamarModel = require(`../models/index`).tipe_kamar
-const Op = require(`sequelize`).Op
-
-// const Sequelize = require("sequelize")
-// const sequelize = new Sequelize("hotel_ukk","root","",{
-//     host: "localhost",
-//     dialect: "mysql"
-// })
 
 
 exports.getAllKamar = async (request, response) => {
-    try{
-        let kamars = await kamarModel.findAll()
-        return response.json({
-        success: true,
-        data: kamars,
-        message: `semua data sukses ditampilkan`
-    })
-    // const result = await sequelize.query(
-    //     `Select * from kamars`
-    // ); response.json(result)
-    // console.log(result) 
-    }catch{
-      response.send("err")  
-    }
-    
-}
+    let kamars = await kamarModel.findAll({
+      include: {
+        model: tipe_kamarModel,
+        attributes: ['nama_tipe_kamar']
+      }
+    });
+    return response.json({
+      success: true,
+      data: kamars,
+      message: "All rooms have been loaded",
+    });
+  };
 
 exports.findKamar = async (request, response) => {
 
@@ -41,6 +29,12 @@ exports.findKamar = async (request, response) => {
             const results = await kamarModel.findAll({
                 where : params
             })
+            if (results.length === 0) {
+                return response.status(404).json({
+                  success: false,
+                  message: 'Data tidak ditemukan'
+                });
+              }
             return response.json({
                 result : results
             })
@@ -66,6 +60,12 @@ exports.addKamar = async (request, response) => {
         nomor_kamar: request.body.nomor_kamar,
         tipeKamarId: request.body.tipeKamarId,
 
+    }
+    if (newKamar.nomor_kamar === '' || newKamar.tipeKamarId==='' ) {
+        return response.json({
+            success: false,
+            message: 'Semua data harus diisi'
+        })
     }
     console.log(newKamar);
     let tipe_kamar = await tipe_kamarModel.findOne({
@@ -108,6 +108,12 @@ exports.updateKamar = async (request, response) => {
         nomor_kamar: request.body.nomor_kamar,
         tipeKamarId: request.body.tipeKamarId,
     }
+    if (kamar.nomor_kamar === '' || kamar.tipeKamarId==='') {
+        return response.json({
+            success: false,
+            message: 'Semua data harus diisi'
+        })
+    }
     kamarModel.update(kamar, { where: { id: id } })
         .then(result => {
             return response.json({
@@ -126,7 +132,12 @@ exports.updateKamar = async (request, response) => {
 
 exports.deleteKamar = async (request, response) => {
     let id = request.params.id
-
+    if (!id) {
+        return response.json({
+            success: false,
+            message: `User with id ${id} not found`
+        })
+    }
     kamarModel.destroy({ where: { id: id } })
         .then(result => {
             return response.json({

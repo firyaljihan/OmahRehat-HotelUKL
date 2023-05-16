@@ -15,23 +15,23 @@ exports.login = async (request, response) => {
             password: md5(request.body.password),
         };
 
-        const findUser = await user.findOne({where:params});
+        const findUser = await modelUser.findOne({where:params});
         if (findUser == null){
-            return res.status(404).json({
+            return response.status(404).json({
                 message: "email or password doesn't match",
                 err: error,
             });
         }
         console.log(findUser)
         let tokenPayload = {
-            id_user: findUser.id_customer,
+            id_user: findUser.id_user,
             email: findUser.email,
             role: findUser.role,
         };
         tokenPayload = JSON.stringify(tokenPayload);
-        let token = await jsonwebtoken.sign(tokenPayload, SECRET_KEY);
+        let token =  jsonwebtoken.sign(tokenPayload, SECRET_KEY);
         
-        return res.status(200).json({
+        return response.status(200).json({
             message: "success login",
             data: {
                 token: token,
@@ -40,17 +40,24 @@ exports.login = async (request, response) => {
                 role: findUser.role,
             },
         });
-    }catch{
-        console.log(err);
-        return res.status(500).json({
+    }
+    catch(error){
+        return response.status(500).json({
             message: "internal error",
-            err: err,
+            err: error,
         });
     }
 };
 
 exports.getAllUser = async (request, response) => {
     let users = await modelUser.findAll()
+    if (users.length === 0) {
+        return response.json({
+          success: true,
+          data: [],
+          message: `Data tidak ditemukan`,
+        });
+      }
     return response.json({
     success: true,
     data: users,
@@ -63,6 +70,13 @@ exports.findUser = async (request, response) => {
     let email = request.body.email
     let role = request.body.role
 
+    if (!nama_user && !email && !role) {
+        return response.status(400).json({
+          success: false,
+          message: 'Minimal satu parameter pencarian harus diisi'
+        });
+      }
+
     let users = await modelUser.findAll({
         where: {
             [Op.and]: [
@@ -72,6 +86,14 @@ exports.findUser = async (request, response) => {
             ]
         }
     })
+
+    if (users.length === 0) {
+        return response.status(404).json({
+            success: false,
+            message: 'Data tidak ditemukan'
+        });
+    }
+    
     return response.json({
         success: true,
         data: users,
@@ -97,11 +119,18 @@ exports.addUser = (request, response) => {
         password: md5(request.body.password),
         role: request.body.role,
     }
+    if (newUser.nama_user === '' || newUser.email==='' || newUser.email==='' ||newUser.password==='' || newUser.role === '') {
+        return response.json({
+            success: false,
+            message: 'Semua data harus diisi'
+        })
+    }
     
     modelUser.create(newUser).then(result => {
         return response.json({
             success: true,
-            data: result,
+            email: result.email,
+            role: result.role,
             message: `User telah ditambahkan`
         })
     })
@@ -115,53 +144,67 @@ exports.addUser = (request, response) => {
 })
 }
 
-exports.updateUser = async (request, response) => {
-    upload(request, response, async error => {
-        if (error) {
-            return response.json({ message: error })
+exports.updateUser = (request, response) => {
+    upload(request, response, async (error) => {
+      if (error) {
+        return response.json({ message: error });
+      }
+  
+      let idUser = request.params.id;
+  
+      let dataUser = {
+          nama_user: request.body.nama_user,
+          // foto: request.file.filename,
+          email: request.body.email,
+          password: md5(request.body.password),
+          role: request.body.role
+      };
+      if (request.file && request.file.filename) {
+        dataUser.foto = request.file.filename;
+      }
+      if (request.file) {
+        const selectedUser = await modelUser.findOne({
+          where: { id: idUser },
+        });
+  
+        const oldFotoUser = selectedUser.foto;
+  
+        const patchFoto = path.join(__dirname, `../foto`, oldFotoUser);
+  
+        if (fs.existsSync(patchFoto)) {
+          fs.unlink(patchFoto, (error) => console.log(error));
         }
-        let id = request.params.id
-        let user = {
-            nama_user: request.body.nama_user,
-            foto: request.file.filename,
-            email: request.body.email,
-            password: md5(request.body.password),
-            role: request.body.role,
-        }
-        
-        if (request.file) {
-            const selectedUser = await modelUser.findOne({
-                where: { id: id }
-            })
-            
-            const oldFotoUser = selectedUser.foto
-            const pathFoto = path.join(__dirname, `../foto`, oldFotoUser)
-            
-            if (fs.existsSync(pathFoto)) {
-                fs.unlink(pathFoto, error =>
-                    console.log(error))
-                }
-                user.foto = request.file.filename
-            }
-            
-            modelUser.update(user, { where: { id: id } })
-            .then(result => {
-                return response.json({
-                    success: true,
-                    message: `Data terupdate`
-                })
-            })
-            .catch(error => {
-                return response.json({
-
-                })
-            })
+        dataUser.foto = request.file.filename;
+      }
+  
+      modelUser
+        .update(dataUser, { where: { id: idUser } })
+        .then((result) => {
+          return response.json({
+            success: true,
+            message: `Data user has been update`,
+          });
         })
-}
+        .catch((error) => {
+          return response.json({
+            success: false,
+            message: error.message,
+          });
+        });
+    });
+  };
+        
+
 
 exports.deleteUser = async (request, response) => {
     const id = request.params.id
     const user = await modelUser.findOne({ where: { id: id } })
+    if (!user) {
+        return response.json({
+            success: false,
+            message: `User with id ${id} not found`
+        })
+    }
     const oldFotoUser = user.foto
     const pathFoto = path.join(__dirname, `../foto`, oldFotoUser)
     
