@@ -1,12 +1,12 @@
 const { request, response } = require("express");
-const tipe_kamarModel = require(`../models/index`).tipe_kamar;
+const tipeModel = require(`../models/index`).tipe_kamar;
 const Op = require(`sequelize`).Op;
 const upload = require(`./upload-foto`).single(`foto`);
 const path = require("path");
 const fs = require(`fs`);
 
 exports.getAllTipeKamar = async (request, response) => {
-  let tipe_kamars = await tipe_kamarModel.findAll();
+  let tipe_kamars = await tipeModel.findAll();
   if (tipe_kamars.length === 0) {
     return response.json({
       success: true,
