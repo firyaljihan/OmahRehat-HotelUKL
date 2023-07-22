@@ -55,51 +55,58 @@ exports.findKamar = async (request, response) => {
 }
 
 exports.addKamar = async (request, response) => {
-
     let newKamar = {
         nomor_kamar: request.body.nomor_kamar,
         tipeKamarId: request.body.tipeKamarId,
-
     }
-    if (newKamar.nomor_kamar === '' || newKamar.tipeKamarId==='' ) {
+
+    if (newKamar.nomor_kamar === '' || newKamar.tipeKamarId === '') {
         return response.json({
             success: false,
             message: 'Semua data harus diisi'
         })
     }
-    console.log(newKamar);
+
+    // Cek apakah nomor kamar sudah ada di database
+    let existingKamar = await kamarModel.findOne({
+        where: {
+            nomor_kamar: newKamar.nomor_kamar,
+        },
+    })
+
+    if (existingKamar) {
+        return response.json({
+            success: false,
+            message: 'Nomor kamar sudah digunakan'
+        })
+    }
+
     let tipe_kamar = await tipe_kamarModel.findOne({
         where: {
             id: newKamar.tipeKamarId,
         },
     })
-    let tes = newKamar.tipeKamarId == tipe_kamar.id
-    console.log(tes)
-    if (tes) {
-        kamarModel.create(newKamar).then((result) => {
-            return response.json({
-                success: true,
-                data: result,
-                message: `kamar telah ditambahkan`
-            })
-        })
 
-            .catch(error => {
-                return response.json({
-                    success: false,
-                    message: error.message
-                })
-            })
-    } else {
+    if (!tipe_kamar) {
         return response.json({
             success: false,
             message: "Room types doesn't exist"
         })
     }
+
+    kamarModel.create(newKamar).then((result) => {
+        return response.json({
+            success: true,
+            data: result,
+            message: `kamar telah ditambahkan`
+        })
+    }).catch(error => {
+        return response.json({
+            success: false,
+            message: error.message
+        })
+    })
 }
-
-
-
 
 exports.updateKamar = async (request, response) => {
 
