@@ -1,0 +1,141 @@
+const { request, response } = require("express")
+const modelCustomer = require("../models/index").customer
+const Op = require('sequelize').Op
+const md5 = require(`md5`)
+
+
+exports.getAllCustomer = async (request, response) => {
+    let customers = await modelCustomer.findAll()
+    if (customers.length === 0) {
+        return response.json({
+          success: true,
+          data: [],
+          message: `Data tidak ditemukan`,
+        });
+      }
+    return response.json({
+    success: true,
+    data: customers,
+    message: `ini adalah semua data Customernya kanjeng ratu`
+})
+}
+  
+exports.findCustomer = async (request, response) => {
+    let nama = request.body.nama
+    let email = request.body.email
+
+    if (!nama && !email) {
+        return response.status(400).json({
+          success: false,
+          message: 'Minimal satu parameter pencarian harus diisi'
+        });
+      }
+
+    let customers = await modelCustomer.findAll({
+        where: {
+            [Op.and]: [
+                { nama: { [Op.substring]: nama } },
+                { email: { [Op.substring]: email } }
+            ]
+        }
+    })
+
+    if (customers.length === 0) {
+        return response.status(404).json({
+            success: false,
+            message: 'Data tidak ditemukan'
+        });
+    }
+    
+    return response.json({
+        success: true,
+        data: customers,
+        message: `berikut data yang anda minta yang mulia`
+    })
+}
+
+exports.addCustomer = (request, response) => {
+    let newCustomer = {
+        nama: request.body.nama,
+        nik: request.body.nik,
+        no_hp: request.body.no_hp,
+        email: request.body.email,
+        password: md5(request.body.password),
+    }
+    if (newCustomer.nama === '' || newCustomer.nik==='' || newCustomer.no_hp==='' ||newCustomer.email==='' || newCustomer.password === '') {
+        return response.json({
+            success: false,
+            message: 'Semua data harus diisi'
+        })
+    }
+    
+    modelCustomer.create(newCustomer).then(result => {
+        return response.json({
+            success: true,
+            email: result.email,
+            role: result.role,
+            message: `Customer telah ditambahkan`
+        })
+    })
+    
+    .catch(error => {
+        return response.json({
+            success: false,
+            message: error.message
+        })
+    })
+}
+
+exports.updateCustomer = (request, response) => {
+      let idCustomer = request.params.id;
+  
+      let dataCustomer = {
+        nama: request.body.nama,
+        nik: request.body.nik,
+        no_hp: request.body.no_hp,
+        email: request.body.email,
+        password: md5(request.body.password),
+      };
+      
+      modelCustomer
+        .update(dataCustomer, { where: { id: idCustomer } })
+        .then((result) => {
+          return response.json({
+            success: true,
+            message: `Data Customer has been update`,
+          });
+        })
+        .catch((error) => {
+          return response.json({
+            success: false,
+            message: error.message,
+          });
+        });
+    }
+        
+
+
+exports.deleteCustomer = async (request, response) => {
+    const id = request.params.id
+    const Customer = await modelCustomer.findOne({ where: { id: id } })
+    if (!Customer) {
+        return response.json({
+            success: false,
+            message: `Customer with id ${id} not found`
+        })
+    }
+    
+    modelCustomer.destroy({ where: { id: id } })
+    .then(result => {
+        return response.json({
+            success: true,
+            message: `Data Customer has been deleted`
+        })
+    })
+    .catch(error => {
+        return response.json({
+            success: false,
+            message: error.message
+        })
+    })
+}

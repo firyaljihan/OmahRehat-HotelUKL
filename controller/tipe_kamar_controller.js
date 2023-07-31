@@ -22,20 +22,13 @@ exports.getAllTipeKamar = async (request, response) => {
 };
 
 exports.findTipeKamar = async (request, response) => {
-  let nama_tipe_kamar = request.body.nama_tipe_kamar;
-  let harga = request.body.harga;
-
-  if (!nama_tipe_kamar && !harga) {
-    return response.status(400).json({
-      success: false,
-      message: "Minimal satu parameter pencarian harus diisi",
-    });
-  }
-  let tipe_kamars = await tipe_kamarModel.findAll({
+  let keyword = request.body.keyword;
+  
+  let tipe_kamars = await tipeModel.findAll({
     where: {
-      [Op.and]: [
-        { nama_tipe_kamar: { [Op.substring]: nama_tipe_kamar } },
-        { harga: { [Op.substring]: harga } },
+      [Op.or]: [
+        { nama_tipe_kamar: { [Op.substring]: keyword } },
+        { harga: { [Op.substring]: keyword } },
       ],
     },
   });
@@ -145,7 +138,7 @@ exports.updateTipeKamar = (request, response) => {
 
 exports.deleteTipeKamar = async (request, response) => {
   const id = request.params.id;
-  const tipe_kamar = await tipe_kamarModel.findOne({ where: { id: id } });
+  const tipe_kamar = await tipeModel.findOne({ where: { id: id } });
   if (!tipe_kamar) {
     return response.json({
       success: false,
@@ -159,7 +152,7 @@ exports.deleteTipeKamar = async (request, response) => {
     fs.unlink(pathFoto, (error) => console.log(error));
   }
 
-  tipe_kamarModel
+  tipeModel
     .destroy({ where: { id: id } })
     .then((result) => {
       return response.json({

@@ -1,7 +1,7 @@
 const { request, response } = require("express")
 const kamarModel = require(`../models/index`).kamar
 const tipe_kamarModel = require(`../models/index`).tipe_kamar
-
+const Op = require(`sequelize`).Op;
 
 exports.getAllKamar = async (request, response) => {
     let kamars = await kamarModel.findAll({
@@ -18,41 +18,28 @@ exports.getAllKamar = async (request, response) => {
   };
 
 exports.findKamar = async (request, response) => {
-
-    try{
-        let params = {
-            nomor_kamar : request.body.nomor_kamar
-        }
-
-        console.log(params.nomor_kamar)
-        try{
-            const results = await kamarModel.findAll({
-                where : params
-            })
-            if (results.length === 0) {
-                return response.status(404).json({
-                  success: false,
-                  message: 'Data tidak ditemukan'
-                });
-              }
-            return response.json({
-                result : results
-            })
-            // const result = await sequelize.query(
-            //     `Select * from kamars"`
-            // );
-        }catch(err){
-            response.json({
-                message: "jihan dong",
-                error: err
-
-            })
-        }
-    }catch(err){
-        response.json(err)
+    let keyword = request.body.keyword;
+  
+    let kamars = await kamarModel.findAll({
+      where: {
+        [Op.or]: [
+          { nomor_kamar: { [Op.substring]: keyword } },
+        ],
+      },
+    });
+    if (kamars.length === 0) {
+      return response.status(404).json({
+        success: false,
+        message: "Data tidak ditemukan",
+      });
     }
-   
-}
+  
+    return response.json({
+      success: true,
+      data: kamars,
+      message: `ini kamar yang anda cari yang mulia`,
+    });
+  };
 
 exports.addKamar = async (request, response) => {
     let newKamar = {
@@ -119,6 +106,18 @@ exports.updateKamar = async (request, response) => {
         return response.json({
             success: false,
             message: 'Semua data harus diisi'
+        })
+    }
+    let existingKamar = await kamarModel.findOne({
+        where: {
+            nomor_kamar: newKamar.nomor_kamar,
+        },
+    })
+
+    if (existingKamar) {
+        return response.json({
+            success: false,
+            message: 'Nomor kamar sudah digunakan'
         })
     }
     kamarModel.update(kamar, { where: { id: id } })
