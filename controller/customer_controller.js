@@ -2,10 +2,56 @@ const { request, response } = require("express")
 const modelCustomer = require("../models/index").customer
 const Op = require('sequelize').Op
 const md5 = require(`md5`)
+const jsonwebtoken = require("jsonwebtoken")
+const SECRET_KEY = "secretcode"
+
+exports.login = async (request, response) => {
+    try{
+        const params = {
+            email: request.body.email,
+            password: md5(request.body.password),
+        };
+
+        const findCust = await modelCustomer.findOne({where:params});
+        if (findCust == null){
+            return response.status(404).json({
+                message: "email or password doesn't match",
+                err: error,
+            });
+        }
+        console.log(findCust)
+        let tokenPayload = {
+            id: findCust.id,
+            email: findCust.email,
+            role: findCust.role,
+        };
+        tokenPayload = JSON.stringify(tokenPayload);
+        let token =  jsonwebtoken.sign(tokenPayload, SECRET_KEY);
+        
+        return response.status(200).json({
+            message: "success login",
+            data: {
+                token: token,
+                id: findCust.id,
+                email: findCust.email,
+                role: findCust.role,
+            },
+        });
+    }
+    catch(error){
+        return response.status(500).json({
+            message: "internal error",
+            err: error,
+        });
+    }
+};
 
 
 exports.getAllCustomer = async (request, response) => {
-    let customers = await modelCustomer.findAll()
+    let customers = await modelCustomer.findAll({
+        order : [['createdAt', 'DESC']],
+    })
+    
     if (customers.length === 0) {
         return response.json({
           success: true,

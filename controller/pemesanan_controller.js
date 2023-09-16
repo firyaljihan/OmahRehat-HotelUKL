@@ -18,7 +18,8 @@ exports.getAllPemesanan = async (request, response) => {
           include: {
             model: tipe_kamarModel,
             attributes: ['nama_tipe_kamar']
-          }
+          },
+          order : [['createdAt', 'DESC']],
         })
         if (pemesanans.length === 0) {
           return response.json({
@@ -37,6 +38,40 @@ exports.getAllPemesanan = async (request, response) => {
       response.send("err")  
     } 
 }
+
+// exports.getPemesananByIdCustomer = async (request, response) => {
+//   try {
+//     const customerId = request.params.customerId; // Ambil ID customer dari parameter request
+//     const pemesanans = await pemesananModel.findAll({
+//       where: { customerId }, // Filter berdasarkan ID customer
+//       include: {
+//         model: tipe_kamarModel,
+//         attributes: ['nama_tipe_kamar']
+//       }
+//     });
+
+//     if (pemesanans.length === 0) {
+//       return response.json({
+//         success: true,
+//         data: [],
+//         message: `Data tidak ditemukan untuk ID customer ${customerId}`,
+//       });
+//     }
+
+//     return response.json({
+//       success: true,
+//       data: pemesanans,
+//       message: `Data pemesanan untuk ID customer ${customerId}`,
+//     });
+//   } catch (error) {
+//     console.error(error);
+//     response.status(500).json({
+//       success: false,
+//       message: 'Terjadi kesalahan saat mengambil data pemesanan',
+//     });
+//   }
+// }
+
 
 exports.findPemesanan = async (request, response) => {
     let status_pemesanan = request.body.status_pemesanan;
@@ -66,6 +101,8 @@ exports.findPemesanan = async (request, response) => {
       message: "All rooms have been loaded",
     });
 }
+
+
 
 exports.addPemesanan = async (request, response) => {
     let nomor_kamar = request.body.nomor_kamar;

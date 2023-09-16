@@ -24,7 +24,7 @@ exports.login = async (request, response) => {
         }
         console.log(findUser)
         let tokenPayload = {
-            id_user: findUser.id_user,
+            id: findUser.id,
             email: findUser.email,
             role: findUser.role,
         };
@@ -35,7 +35,7 @@ exports.login = async (request, response) => {
             message: "success login",
             data: {
                 token: token,
-                id_user: findUser.id_user,
+                id: findUser.id,
                 email: findUser.email,
                 role: findUser.role,
             },
@@ -50,7 +50,9 @@ exports.login = async (request, response) => {
 };
 
 exports.getAllUser = async (request, response) => {
-    let users = await modelUser.findAll()
+    let users = await modelUser.findAll({
+        order : [['createdAt', 'DESC']],
+    })
     if (users.length === 0) {
         return response.json({
           success: true,
@@ -64,6 +66,38 @@ exports.getAllUser = async (request, response) => {
     message: `ini adalah semua data usernya kanjeng ratu`
 })
 }
+
+exports.getAllReceptionists = async (request, response) => {
+    try {
+      let resepsionis = await modelUser.findAll({
+        where: {
+          role: 'resepsionis' // Ganti dengan nilai yang sesuai dengan role "resepsionis" dalam basis data Anda
+        },
+        order: [['createdAt', 'DESC']],
+      });
+  
+      if (resepsionis.length === 0) {
+        return response.json({
+          success: true,
+          data: [],
+          message: `Tidak ada resepsionis yang ditemukan`,
+        });
+      }
+  
+      return response.json({
+        success: true,
+        data: resepsionis,
+        message: `Ini adalah semua data resepsionis`,
+      });
+    } catch (error) {
+      console.error(error);
+      return response.status(500).json({
+        success: false,
+        message: `Terjadi kesalahan dalam mengambil data resepsionis`,
+      });
+    }
+  };
+  
   
 exports.findUser = async (request, response) => {
     let nama_user = request.body.nama_user

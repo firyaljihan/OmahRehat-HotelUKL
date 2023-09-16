@@ -6,7 +6,9 @@ const path = require("path");
 const fs = require(`fs`);
 
 exports.getAllTipeKamar = async (request, response) => {
-  let tipe_kamars = await tipeModel.findAll();
+  let tipe_kamars = await tipeModel.findAll({
+    order : [['createdAt', 'DESC']],
+  });
   if (tipe_kamars.length === 0) {
     return response.json({
       success: true,

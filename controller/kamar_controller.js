@@ -2,13 +2,19 @@ const { request, response } = require("express")
 const kamarModel = require(`../models/index`).kamar
 const tipe_kamarModel = require(`../models/index`).tipe_kamar
 const Op = require(`sequelize`).Op;
+const Sequelize = require("sequelize");
+const sequelize = new Sequelize("hotel_ukk", "root", "", {
+  host: "localhost",
+  dialect: "mysql",
+});
 
 exports.getAllKamar = async (request, response) => {
     let kamars = await kamarModel.findAll({
       include: {
         model: tipe_kamarModel,
         attributes: ['nama_tipe_kamar']
-      }
+      },
+      order : [['createdAt', 'DESC']],
     });
     return response.json({
       success: true,
@@ -38,6 +44,22 @@ exports.findKamar = async (request, response) => {
       success: true,
       data: kamars,
       message: `ini kamar yang anda cari yang mulia`,
+    });
+  };
+
+  exports.availableRoom = async (request, response) => {
+    const tgl_check_in = request.body.tgl_check_in;
+    const tgl_check_out = request.body.tgl_check_out;
+  
+    const result = await sequelize.query(
+      `SELECT tipe_kamars.nama_tipe_kamar, tipe_kamars.foto, tipe_kamars.harga, kamars.nomor_kamar FROM kamars LEFT JOIN tipe_kamars ON kamars.tipeKamarId = tipe_kamars.id LEFT JOIN detail_pemesanans ON detail_pemesanans.kamarId = kamars.id WHERE kamars.id NOT IN (SELECT kamarId from detail_pemesanans WHERE tgl_akses BETWEEN '${tgl_check_in}' AND '${tgl_check_out}') GROUP BY kamars.nomor_kamar`
+    );
+  
+    return response.json({
+      success: true,
+      sisa_kamar: result[0].length,
+      data: result[0],
+      message: `Room have been loaded`,
     });
   };
 
@@ -110,7 +132,7 @@ exports.updateKamar = async (request, response) => {
     }
     let existingKamar = await kamarModel.findOne({
         where: {
-            nomor_kamar: newKamar.nomor_kamar,
+            nomor_kamar: kamar.nomor_kamar,
         },
     })
 
