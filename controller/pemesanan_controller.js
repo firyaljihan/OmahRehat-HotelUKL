@@ -39,6 +39,34 @@ exports.getAllPemesanan = async (request, response) => {
     } 
 }
 
+exports.getByUser = async (request, response) => {
+  let email = request.params.email;
+
+  const result = await pemesananModel.findAll({
+    include: {
+      model: tipe_kamarModel,
+      attributes: ["nama_tipe_kamar"]
+    },
+    where: {
+      email_pemesan : email
+    },
+    order: [['createdAt', 'DESC']],
+  });
+  if (result.length === 0) {
+    return response.json({
+      success: true,
+      data: [],
+      message: "Data tidak ditemukan",
+    })
+  }
+
+  response.json({
+    success: true,
+    data: result,
+    message: `All Transaction have been loaded...`,
+  });
+};
+
 // exports.getPemesananByIdCustomer = async (request, response) => {
 //   try {
 //     const customerId = request.params.customerId; // Ambil ID customer dari parameter request

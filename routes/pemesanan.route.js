@@ -14,5 +14,6 @@ app.post("/addPemesanan",  pemesanan_Controller.addPemesanan)
 app.put("/updatePemesanan/:id", pemesanan_Controller.updatePemesanan)
 app.delete("/deletePemesanan/:id",  pemesanan_Controller.deletePemesanan)
 app.put("/updateBooking/:id", pemesanan_Controller.updateStatusBooking)
+app.get("/getAll/:email", pemesanan_Controller.getByUser)
 
 module.exports = app
